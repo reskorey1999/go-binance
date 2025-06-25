@@ -730,8 +730,21 @@ type WsDepthEvent struct {
 	Asks             []Ask  `json:"a"`
 }
 
+// WsBinanceDepthEvent define websocket depth book event
+type WsBinanceDepthEvent struct {
+	Event            string        `json:"e"`
+	Time             int64         `json:"E"`
+	TransactionTime  int64         `json:"T"`
+	Symbol           string        `json:"s"`
+	FirstUpdateID    int64         `json:"U"`
+	LastUpdateID     int64         `json:"u"`
+	PrevLastUpdateID int64         `json:"pu"`
+	Bids             []interface{} `json:"b"`
+	Asks             []interface{} `json:"a"`
+}
+
 // WsDepthHandler handle websocket depth event
-type WsDepthHandler func(event *WsDepthEvent)
+type WsDepthHandler func(event *WsBinanceDepthEvent)
 
 func wsPartialDepthServe(symbol string, levels int, rate *time.Duration, handler WsDepthHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
 	if levels != 5 && levels != 10 && levels != 20 {
@@ -770,7 +783,7 @@ func WsCombinedDepthServe(symbolLevels map[string]string, handler WsDepthHandler
 			errHandler(err)
 			return
 		}
-		event := new(WsDepthEvent)
+		event := new(WsBinanceDepthEvent)
 		data := j.Get("data").MustMap()
 		event.Event = data["e"].(string)
 		event.Time, _ = data["E"].(json.Number).Int64()
@@ -779,24 +792,8 @@ func WsCombinedDepthServe(symbolLevels map[string]string, handler WsDepthHandler
 		event.FirstUpdateID, _ = data["U"].(json.Number).Int64()
 		event.LastUpdateID, _ = data["u"].(json.Number).Int64()
 		event.PrevLastUpdateID, _ = data["pu"].(json.Number).Int64()
-		bidsLen := len(data["b"].([]interface{}))
-		event.Bids = make([]Bid, bidsLen)
-		for i := 0; i < bidsLen; i++ {
-			item := data["b"].([]interface{})[i].([]interface{})
-			event.Bids[i] = Bid{
-				Price:    item[0].(string),
-				Quantity: item[1].(string),
-			}
-		}
-		asksLen := len(data["a"].([]interface{}))
-		event.Asks = make([]Ask, asksLen)
-		for i := 0; i < asksLen; i++ {
-			item := data["a"].([]interface{})[i].([]interface{})
-			event.Asks[i] = Ask{
-				Price:    item[0].(string),
-				Quantity: item[1].(string),
-			}
-		}
+		event.Bids = data["b"].([]interface{})
+		event.Asks = data["a"].([]interface{})
 		handler(event)
 	}
 	return wsServe(cfg, wsHandler, errHandler)
@@ -816,7 +813,7 @@ func WsCombinedDiffDepthServe(symbols []string, handler WsDepthHandler, errHandl
 			errHandler(err)
 			return
 		}
-		event := new(WsDepthEvent)
+		event := new(WsBinanceDepthEvent)
 		data := j.Get("data").MustMap()
 		event.Event = data["e"].(string)
 		event.Time, _ = data["E"].(json.Number).Int64()
@@ -825,24 +822,8 @@ func WsCombinedDiffDepthServe(symbols []string, handler WsDepthHandler, errHandl
 		event.FirstUpdateID, _ = data["U"].(json.Number).Int64()
 		event.LastUpdateID, _ = data["u"].(json.Number).Int64()
 		event.PrevLastUpdateID, _ = data["pu"].(json.Number).Int64()
-		bidsLen := len(data["b"].([]interface{}))
-		event.Bids = make([]Bid, bidsLen)
-		for i := 0; i < bidsLen; i++ {
-			item := data["b"].([]interface{})[i].([]interface{})
-			event.Bids[i] = Bid{
-				Price:    item[0].(string),
-				Quantity: item[1].(string),
-			}
-		}
-		asksLen := len(data["a"].([]interface{}))
-		event.Asks = make([]Ask, asksLen)
-		for i := 0; i < asksLen; i++ {
-			item := data["a"].([]interface{})[i].([]interface{})
-			event.Asks[i] = Ask{
-				Price:    item[0].(string),
-				Quantity: item[1].(string),
-			}
-		}
+		event.Bids = data["b"].([]interface{})
+		event.Asks = data["a"].([]interface{})
 		handler(event)
 	}
 	return wsServe(cfg, wsHandler, errHandler)
@@ -875,7 +856,7 @@ func wsDepthServe(symbol string, levels string, rate *time.Duration, handler WsD
 			errHandler(err)
 			return
 		}
-		event := new(WsDepthEvent)
+		event := new(WsBinanceDepthEvent)
 		event.Event = j.Get("e").MustString()
 		event.Time = j.Get("E").MustInt64()
 		event.TransactionTime = j.Get("T").MustInt64()
@@ -883,24 +864,8 @@ func wsDepthServe(symbol string, levels string, rate *time.Duration, handler WsD
 		event.FirstUpdateID = j.Get("U").MustInt64()
 		event.LastUpdateID = j.Get("u").MustInt64()
 		event.PrevLastUpdateID = j.Get("pu").MustInt64()
-		bidsLen := len(j.Get("b").MustArray())
-		event.Bids = make([]Bid, bidsLen)
-		for i := 0; i < bidsLen; i++ {
-			item := j.Get("b").GetIndex(i)
-			event.Bids[i] = Bid{
-				Price:    item.GetIndex(0).MustString(),
-				Quantity: item.GetIndex(1).MustString(),
-			}
-		}
-		asksLen := len(j.Get("a").MustArray())
-		event.Asks = make([]Ask, asksLen)
-		for i := 0; i < asksLen; i++ {
-			item := j.Get("a").GetIndex(i)
-			event.Asks[i] = Ask{
-				Price:    item.GetIndex(0).MustString(),
-				Quantity: item.GetIndex(1).MustString(),
-			}
-		}
+		event.Bids = j.Get("b").MustArray()
+		event.Asks = j.Get("a").MustArray()
 		handler(event)
 	}
 	return wsServe(cfg, wsHandler, errHandler)

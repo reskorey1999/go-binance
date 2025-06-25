@@ -160,7 +160,7 @@ func WsCombinedPartialDepthServe(symbolLevels map[string]string, handler WsParti
 }
 
 // WsDepthHandler handle websocket depth event
-type WsDepthHandler func(event *WsDepthEvent)
+type WsDepthHandler func(event *WsBinanceDepthEvent)
 
 // WsDepthServe serve websocket depth handler with a symbol, using 1sec updates
 func WsDepthServe(symbol string, handler WsDepthHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
@@ -183,30 +183,14 @@ func wsDepthServe(endpoint string, handler WsDepthHandler, errHandler ErrHandler
 			errHandler(err)
 			return
 		}
-		event := new(WsDepthEvent)
+		event := new(WsBinanceDepthEvent)
 		event.Event = j.Get("e").MustString()
 		event.Time = j.Get("E").MustInt64()
 		event.Symbol = j.Get("s").MustString()
 		event.LastUpdateID = j.Get("u").MustInt64()
 		event.FirstUpdateID = j.Get("U").MustInt64()
-		bidsLen := len(j.Get("b").MustArray())
-		event.Bids = make([]Bid, bidsLen)
-		for i := 0; i < bidsLen; i++ {
-			item := j.Get("b").GetIndex(i)
-			event.Bids[i] = Bid{
-				Price:    item.GetIndex(0).MustString(),
-				Quantity: item.GetIndex(1).MustString(),
-			}
-		}
-		asksLen := len(j.Get("a").MustArray())
-		event.Asks = make([]Ask, asksLen)
-		for i := 0; i < asksLen; i++ {
-			item := j.Get("a").GetIndex(i)
-			event.Asks[i] = Ask{
-				Price:    item.GetIndex(0).MustString(),
-				Quantity: item.GetIndex(1).MustString(),
-			}
-		}
+		event.Bids = j.Get("b").MustArray()
+		event.Asks = j.Get("a").MustArray()
 		handler(event)
 	}
 	return wsServe(cfg, wsHandler, errHandler)
@@ -221,6 +205,17 @@ type WsDepthEvent struct {
 	FirstUpdateID int64  `json:"U"`
 	Bids          []Bid  `json:"b"`
 	Asks          []Ask  `json:"a"`
+}
+
+// WsBinanceDepthEvent define websocket depth event
+type WsBinanceDepthEvent struct {
+	Event         string        `json:"e"`
+	Time          int64         `json:"E"`
+	Symbol        string        `json:"s"`
+	LastUpdateID  int64         `json:"u"`
+	FirstUpdateID int64         `json:"U"`
+	Bids          []interface{} `json:"b"`
+	Asks          []interface{} `json:"a"`
 }
 
 // WsCombinedDepthServe is similar to WsDepthServe, but it for multiple symbols
@@ -250,33 +245,18 @@ func wsCombinedDepthServe(endpoint string, handler WsDepthHandler, errHandler Er
 			errHandler(err)
 			return
 		}
-		event := new(WsDepthEvent)
+		event := new(WsBinanceDepthEvent)
 		stream := j.Get("stream").MustString()
 		symbol := strings.Split(stream, "@")[0]
+		event.Event = j.Get("event").MustString()
 		event.Symbol = strings.ToUpper(symbol)
 		data := j.Get("data").MustMap()
 		event.Time, _ = data["E"].(json.Number).Int64()
 		event.LastUpdateID, _ = data["u"].(json.Number).Int64()
 		event.FirstUpdateID, _ = data["U"].(json.Number).Int64()
-		bidsLen := len(data["b"].([]interface{}))
-		event.Bids = make([]Bid, bidsLen)
-		for i := 0; i < bidsLen; i++ {
-			item := data["b"].([]interface{})[i].([]interface{})
-			event.Bids[i] = Bid{
-				Price:    item[0].(string),
-				Quantity: item[1].(string),
-			}
-		}
-		asksLen := len(data["a"].([]interface{}))
-		event.Asks = make([]Ask, asksLen)
-		for i := 0; i < asksLen; i++ {
+		event.Bids = data["b"].([]interface{})
+		event.Asks = data["a"].([]interface{})
 
-			item := data["a"].([]interface{})[i].([]interface{})
-			event.Asks[i] = Ask{
-				Price:    item[0].(string),
-				Quantity: item[1].(string),
-			}
-		}
 		handler(event)
 	}
 	return wsServe(cfg, wsHandler, errHandler)
