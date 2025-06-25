@@ -6,7 +6,7 @@ go 1.23.4
 
 replace github.com/reskorey1999/go-binance/v2 => ../v2
 
-replace github.com/reskorey1999/go-binance/v2/futures => ../v2/futures
+//replace github.com/reskorey1999/go-binance/v2/futures => ../v2/futures
 
 require github.com/reskorey1999/go-binance/v2 v2.0.0-00010101000000-000000000000
 
