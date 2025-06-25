@@ -546,7 +546,7 @@ func WsMarketTickerServe(symbol string, handler WsMarketTickerHandler, errHandle
 	return wsServe(cfg, wsHandler, errHandler)
 }
 
-func WsCombinedMarketTickerServe(symbols []string, handler WsAllMarketTickerHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
+func WsCombinedMarketTickerServe(symbols []string, handler WsMarketTickerHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
 	baseUrl := getWsEndpoint()
 	var tmp string
 	for _, symbol := range symbols {
@@ -555,7 +555,7 @@ func WsCombinedMarketTickerServe(symbols []string, handler WsAllMarketTickerHand
 	endpoint := baseUrl + tmp
 	cfg := newWsConfig(endpoint)
 	wsHandler := func(message []byte) {
-		var event WsAllMarketTickerEvent
+		event := new(WsMarketTickerEvent)
 		err := json.Unmarshal(message, &event)
 		if err != nil {
 			errHandler(err)
