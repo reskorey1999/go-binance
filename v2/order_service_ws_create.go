@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/adshao/go-binance/v2/common"
-	"github.com/adshao/go-binance/v2/common/websocket"
+	"github.com/reskorey1999/go-binance/v2/common"
+	"github.com/reskorey1999/go-binance/v2/common/websocket"
 )
 
 // OrderCreateWsService creates order
