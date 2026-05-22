@@ -308,6 +308,35 @@ type WsKline struct {
 	ActiveBuyQuoteVolume string `json:"Q"`
 }
 
+// WsKlineEvent define websocket kline event
+type WsKlineEvent2 struct {
+	Event  string   `json:"e"`
+	Time   int64    `json:"E"`
+	Symbol string   `json:"s"`
+	Kline  WsKline2 `json:"k"`
+}
+
+// WsKline define websocket kline
+type WsKline2 struct {
+	StartTime            int64  `json:"t"`
+	EndTime              int64  `json:"T"`
+	Symbol               string `json:"s"`
+	Interval             string `json:"i"`
+	FirstTradeID         int64  `json:"f"`
+	LastTradeID          int64  `json:"L"`
+	Open                 string `json:"o"`
+	Close                string `json:"c"`
+	High                 string `json:"h"`
+	Low                  string `json:"l"`
+	Volume               string `json:"v"`
+	TradeNum             int64  `json:"n"`
+	IsFinal              bool   `json:"x"`
+	QuoteVolume          string `json:"q"`
+	ActiveBuyVolume      string `json:"V"`
+	ActiveBuyQuoteVolume string `json:"Q"`
+	B                    string `json:"B"`
+}
+
 // WsKlineHandler handle websocket kline event
 type WsKlineHandler func(event *WsKlineEvent)
 
@@ -327,38 +356,26 @@ func WsKlineServe(symbol string, interval string, handler WsKlineHandler, errHan
 	return wsServe(cfg, wsHandler, errHandler)
 }
 
+type WsKlineHandler2 func(event *WsKlineEvent2)
+
 // WsCombinedKlineServe is similar to WsKlineServe, but it handles multiple symbols with it interval
-func WsCombinedKlineServe(symbolIntervalPair map[string]string, handler WsKlineHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
+func WsCombinedKlineServe(symbolIntervalPair map[string]string, handler2 WsKlineHandler2, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
 	endpoint := "wss://fstream.binance.com/market/ws"
 	for symbol, interval := range symbolIntervalPair {
 		endpoint += fmt.Sprintf("/%s@kline_%s", strings.ToLower(symbol), interval)
 	}
 	cfg := newWsConfig(endpoint)
-	wsHandler := func(message []byte) {
-		j, err := newJSON(message)
+	wsHandler2 := func(message []byte) {
+		event := new(WsKlineEvent2)
+		err = json.Unmarshal(message, event)
 		if err != nil {
 			errHandler(err)
 			return
 		}
 
-		stream := j.Get("stream").MustString()
-		data := j.Get("data").MustMap()
-
-		symbol := strings.Split(stream, "@")[0]
-
-		jsonData, _ := json.Marshal(data)
-
-		event := new(WsKlineEvent)
-		err = json.Unmarshal(jsonData, event)
-		if err != nil {
-			errHandler(err)
-			return
-		}
-		event.Symbol = strings.ToUpper(symbol)
-
-		handler(event)
+		handler2(event)
 	}
-	return wsServe(cfg, wsHandler, errHandler)
+	return wsServe(cfg, wsHandler2, errHandler)
 }
 
 // WsContinuousKlineEvent define websocket continuous kline event
@@ -526,8 +543,15 @@ type WsMarketTickerEvent struct {
 	TradeCount         int64  `json:"n"`
 }
 
+type WsContractTickerEvent struct {
+	Stream string              `json:"stream"`
+	Data   WsMarketTickerEvent `json:"data"`
+}
+
 // WsMarketTickerHandler handle websocket that pushes 24hr rolling window mini-ticker statistics for a single symbol.
 type WsMarketTickerHandler func(event *WsMarketTickerEvent)
+
+type WsMarketContractTickerHandler func(event *WsContractTickerEvent)
 
 // WsMarketTickerServe serve websocket that pushes 24hr rolling window mini-ticker statistics for a single symbol.
 func WsMarketTickerServe(symbol string, handler WsMarketTickerHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
@@ -545,16 +569,16 @@ func WsMarketTickerServe(symbol string, handler WsMarketTickerHandler, errHandle
 	return wsServe(cfg, wsHandler, errHandler)
 }
 
-func WsCombinedMarketTickerServe(symbols []string, handler WsMarketTickerHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
+func WsCombinedMarketTickerServe(symbols []string, handler WsMarketContractTickerHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
 	baseUrl := "wss://fstream.binance.com/market/stream?streams="
 	var tmp string
 	for _, symbol := range symbols {
-		tmp = tmp + fmt.Sprintf("/%s@ticker", strings.ToLower(symbol))
+		tmp = tmp + fmt.Sprintf("%s@ticker", strings.ToLower(symbol)) + "/"
 	}
 	endpoint := baseUrl + tmp
 	cfg := newWsConfig(endpoint)
 	wsHandler := func(message []byte) {
-		event := new(WsMarketTickerEvent)
+		event := new(WsContractTickerEvent)
 		err := json.Unmarshal(message, &event)
 		if err != nil {
 			errHandler(err)
