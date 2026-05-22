@@ -329,11 +329,10 @@ func WsKlineServe(symbol string, interval string, handler WsKlineHandler, errHan
 
 // WsCombinedKlineServe is similar to WsKlineServe, but it handles multiple symbols with it interval
 func WsCombinedKlineServe(symbolIntervalPair map[string]string, handler WsKlineHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
-	endpoint := getCombinedEndpoint()
+	endpoint := "wss://fstream.binance.com/market/ws"
 	for symbol, interval := range symbolIntervalPair {
-		endpoint += fmt.Sprintf("%s@kline_%s", strings.ToLower(symbol), interval) + "/"
+		endpoint += fmt.Sprintf("/%s@kline_%s", strings.ToLower(symbol), interval)
 	}
-	endpoint = endpoint[:len(endpoint)-1]
 	cfg := newWsConfig(endpoint)
 	wsHandler := func(message []byte) {
 		j, err := newJSON(message)
@@ -547,7 +546,7 @@ func WsMarketTickerServe(symbol string, handler WsMarketTickerHandler, errHandle
 }
 
 func WsCombinedMarketTickerServe(symbols []string, handler WsMarketTickerHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
-	baseUrl := getWsEndpoint()
+	baseUrl := "wss://fstream.binance.com/market/stream?streams="
 	var tmp string
 	for _, symbol := range symbols {
 		tmp = tmp + fmt.Sprintf("/%s@ticker", strings.ToLower(symbol))
