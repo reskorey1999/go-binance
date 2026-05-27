@@ -1225,3 +1225,45 @@ func getWsApiEndpoint() string {
 
 	return BaseWsApiMainURL
 }
+
+//wss://fstream.binance.com/stream?streams=btcusdt@trade/ethusdt@trade
+
+type WsTradeHandler func(event *WsCombinedTradeEvent)
+
+// WsCombinedTradeServe is similar to WsTradeServe, but it handles multiple symbols
+func WsCombinedTradeServe(symbols []string, handler WsTradeHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
+	endpoint := "wss://fstream.binance.com/stream?streams="
+	for _, s := range symbols {
+		endpoint += fmt.Sprintf("%s@trade/", strings.ToLower(s))
+	}
+	endpoint = endpoint[:len(endpoint)-1]
+	cfg := newWsConfig(endpoint)
+	wsHandler := func(message []byte) {
+		event := new(WsCombinedTradeEvent)
+		err := json.Unmarshal(message, event)
+		if err != nil {
+			errHandler(err)
+			return
+		}
+		handler(event)
+	}
+	return wsServe(cfg, wsHandler, errHandler)
+}
+
+// WsTradeEvent define websocket trade event
+type WsTradeEvent struct {
+	Event     string `json:"e"`
+	Time      int64  `json:"E"`
+	TradeTime int64  `json:"T"`
+	Symbol    string `json:"s"`
+	TradeID   int64  `json:"t"`
+	Price     string `json:"p"`
+	Quantity  string `json:"q"`
+	ExecType  string `json:"X"`
+	IsMaker   bool   `json:"m"` // add this field to avoid case insensitive unmarshalling
+}
+
+type WsCombinedTradeEvent struct {
+	Stream string       `json:"stream"`
+	Data   WsTradeEvent `json:"data"`
+}
